@@ -17,7 +17,8 @@ String heartRecent;
 String heartUpdateMode; // "每次" "手动" "每N次"
 int heartUpdateEvery;
 bool isOfflineMode;
-bool showEmotionInBar;double fontSize;
+bool showEmotionInBar;double fontSize;double bubbleOpacity;
+double bubbleBlur;List<Map<String, dynamic>> bubblePresets;
 String replyLength;
 bool replyLengthEnabled;int memoryCount;
 String longTermMemory;
@@ -26,11 +27,13 @@ String customBubbleCss;
   List<Map<String, String>> messages;
 
   bool showAvatar; bool showBubble; bool showTime; bool showName;
+  String timePosition;
   String myBubbleStyle; String theirBubbleStyle;
   String fontColor; 
   double headerOpacity;  // 新增：标题栏透明度位置
   double footerOpacity;  // 新增：工具栏透明度位置
-  String chatBackground;
+  List<String> chatBackgrounds;
+String selectedBackground;
   String worldBook;
   List<String> stickers;
 
@@ -53,16 +56,20 @@ this.heartUpdateMode = "每次",
 this.heartUpdateEvery = 3,
 this.isOfflineMode = false,
 this.showEmotionInBar = false,this.fontSize = 14,
+this.bubbleOpacity = 0.15,
+this.bubbleBlur = 12,this.bubblePresets = const [],
 this.replyLength = "适中",
 this.replyLengthEnabled = false,this.memoryCount = 20,
 this.longTermMemory = "",
 this.sensitiveWords = const [], List<Map<String, String>>? msgs,
     this.customBubbleCss = "",
-    this.showAvatar = true, this.showBubble = true, this.showTime = true, this.showName = true,
+    this.showAvatar = true, this.showBubble = true, this.showTime = false,
+    this.timePosition = "气泡下方", this.showName = true,
     this.myBubbleStyle = "透明", this.theirBubbleStyle = "黑",
     this.fontColor = "#FFFFFF", 
     this.headerOpacity = 0.7, 
-    this.footerOpacity = 0.3, this.chatBackground = "", this.worldBook = "无",
+    this.footerOpacity = 0.3, this.chatBackgrounds = const [],
+    this.selectedBackground = "", this.worldBook = "无",
     List<String>? stickerList,
   }) : messages = msgs ?? [],stickers = stickerList ?? [];
 
@@ -81,15 +88,17 @@ this.sensitiveWords = const [], List<Map<String, String>>? msgs,
 'heartUpdateMode': heartUpdateMode,
 'heartUpdateEvery': heartUpdateEvery,'isOfflineMode': isOfflineMode,
 'showEmotionInBar': showEmotionInBar,
-    'fontSize': fontSize,
+'fontSize': fontSize,'bubbleOpacity': bubbleOpacity,
+'bubbleBlur': bubbleBlur,'bubblePresets': bubblePresets,
 'replyLength': replyLength,
 'replyLengthEnabled': replyLengthEnabled,'memoryCount': memoryCount,
 'longTermMemory': longTermMemory,
 'sensitiveWords': sensitiveWords,'customBubbleCss': customBubbleCss,'showAvatar': showAvatar,
-    'showBubble': showBubble, 'showTime': showTime, 'showName': showName,
+    'showBubble': showBubble, 'timePosition': timePosition, 'showName': showName,
     'myBubbleStyle': myBubbleStyle, 'theirBubbleStyle': theirBubbleStyle,
     'fontColor': fontColor, 
-    'footerOpacity': footerOpacity, 'chatBackground': chatBackground,
+    'footerOpacity': footerOpacity, 'chatBackgrounds': chatBackgrounds,
+'selectedBackground': selectedBackground,
     'worldBook': worldBook, 'stickers': stickers,
   };
 
@@ -116,6 +125,9 @@ heartRecent: json['heartRecent'] ?? "",
 heartUpdateMode: json['heartUpdateMode'] ?? "每次",
 heartUpdateEvery: json['heartUpdateEvery'] ?? 3,isOfflineMode: json['isOfflineMode'] ?? false,
 showEmotionInBar: json['showEmotionInBar'] ?? false,fontSize: (json['fontSize'] ?? 14).toDouble(),
+bubbleOpacity: (json['bubbleOpacity'] ?? 0.15).toDouble(),
+bubbleBlur: (json['bubbleBlur'] ?? 12).toDouble(),
+bubblePresets: List<Map<String, dynamic>>.from(json['bubblePresets'] ?? []),
 replyLength: json['replyLength'] ?? "适中",
 replyLengthEnabled: json['replyLengthEnabled'] ?? false,memoryCount: json['memoryCount'] ?? 20,
 longTermMemory: json['longTermMemory'] ?? "",
@@ -124,6 +136,7 @@ sensitiveWords: List<String>.from(json['sensitiveWords'] ?? []),
     showAvatar: json['showAvatar'] ?? true, 
     showBubble: json['showBubble'] ?? true,
     showTime: json['showTime'] ?? true, 
+    timePosition: json['timePosition'] ?? "气泡下方",
     showName: json['showName'] ?? true,
     myBubbleStyle: json['myBubbleStyle'] ?? "透明", 
     theirBubbleStyle: json['theirBubbleStyle'] ?? "黑",
@@ -132,7 +145,8 @@ sensitiveWords: List<String>.from(json['sensitiveWords'] ?? []),
     // --- 核心修复：确保这里永远不会拿到 Null ---
     headerOpacity: (json['headerOpacity'] ?? 0.7).toDouble(),
     footerOpacity: (json['footerOpacity'] ?? 0.3).toDouble(),
-    chatBackground: json['chatBackground'] ?? "", 
+    chatBackgrounds: List<String>.from(json['chatBackgrounds'] ?? []),
+selectedBackground: json['selectedBackground'] ?? "", 
     worldBook: json['worldBook'] ?? "无",
   );
 }

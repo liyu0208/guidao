@@ -11,6 +11,7 @@ import '../models/world_book_data.dart';
 import 'world_book_page.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'dart:ui';
+import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 
 // --- 辅助函数：统一头像渲染 ---
 Widget _renderAvatar(String data) {
@@ -688,6 +689,7 @@ class ChatRoomPage extends StatefulWidget {
   const ChatRoomPage({super.key, required this.role});
   @override
   State<ChatRoomPage> createState() => _CRPState();
+  
 }
 
 class _CRPState extends State<ChatRoomPage> {
@@ -803,26 +805,56 @@ class _CRPState extends State<ChatRoomPage> {
       },
       child: Container(
         // 这里负责聊天室的背景图
-        decoration:
-            widget.role.chatBackground.isEmpty
-                ? null
-                : BoxDecoration(
-                  image: DecorationImage(
-                    image: MemoryImage(
-                      base64Decode(widget.role.chatBackground),
-                    ),
-                    fit: BoxFit.cover,
-                  ),
-                ),
+decoration:
+    widget.role.selectedBackground.isEmpty
+        ? null
+        : BoxDecoration(
+          image: DecorationImage(
+            image: MemoryImage(
+              base64Decode(widget.role.selectedBackground),
+            ),
+            fit: BoxFit.cover,
+          ),
+        ),
         child: Column(
           children: [
+            // 顶部情绪条
+            if (widget.role.showEmotionInBar && widget.role.heartEmotion.isNotEmpty)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                color: Colors.black.withOpacity(0.3),
+                child: Row(
+                  children: [
+                    const Icon(Icons.favorite, size: 12, color: Colors.pinkAccent),
+                    const SizedBox(width: 6),
+                    Text(
+                      "情绪：${widget.role.heartEmotion}　心情：${widget.role.heartMood}　状态：${widget.role.heartStatus}",
+                      style: const TextStyle(fontSize: 11, color: Colors.white54),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
             // 1. 消息列表（放在最上面，占满屏幕）
             Expanded(
               child: ListView.builder(
                 controller: _scrollC,
                 padding: const EdgeInsets.all(15),
                 itemCount: widget.role.messages.length,
-                itemBuilder: (ctx, i) => _buildRow(widget.role.messages[i]),
+                itemBuilder: (ctx, i) {
+  final msg = widget.role.messages[i];
+  final showDivider = widget.role.showTime && i > 0 && _shouldShowDivider(
+    widget.role.messages[i - 1]['time'],
+    msg['time'],
+  );
+  return Column(
+    children: [
+      if (showDivider) _buildTimeDivider(msg['time']),
+      _buildRow(msg),
+    ],
+  );
+},
               ),
             ),
 
@@ -849,8 +881,17 @@ class _CRPState extends State<ChatRoomPage> {
                 15,
                 15,
               ), // 减小顶部距离，保持底部悬浮
-              child: CyberGlassContainer(
-                isMe: false,
+              child: ClipRRect(
+  borderRadius: BorderRadius.circular(18),
+  child: BackdropFilter(
+    filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(widget.role.footerOpacity),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withOpacity(0.05), width: 0.4),
+      ),
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxHeight: 45), // 强制限制最大高度
                   child: Row(
@@ -909,6 +950,8 @@ class _CRPState extends State<ChatRoomPage> {
                 ),
               ),
             ),
+            )
+            )
           ],
         ),
       ),
@@ -935,7 +978,7 @@ class _CRPState extends State<ChatRoomPage> {
     String? extra,
   }) {
     setState(() {
-      final msg = <String, String>{"role": "user", "text": text, "kind": kind};
+      final msg = <String, String>{"role": "user", "text": text, "kind": kind, "time": DateTime.now().toIso8601String()};
       if (imageBase64 != null && imageBase64.isNotEmpty) {
         msg["image"] = imageBase64;
       }
@@ -1021,7 +1064,7 @@ class _CRPState extends State<ChatRoomPage> {
                         wb.isNotEmpty
                             ? "\n\n以下是背景参考设定，仅供你理解世界观，不要直接输出这些内容：\n$wb"
                             : "";
-                    return "扮演【${widget.role.name}】。${widget.role.longTermMemory.isNotEmpty ? '\n\n【长期记忆】\n${widget.role.longTermMemory}' : ''} $modePrompt$lengthPrompt\n\n人设：${widget.role.persona}。$wbPrompt\n\n【重要格式要求】每次回复必须严格按以下格式输出，不能省略任何部分：\n[对话]\n（你的回复内容）\n[心声]\n情绪:（一个词）\n想法:（一句话）\n感受:（对用户说话方式的感受）\n想说:（想说没说出口的话）\n状态:（当前在做什么）\n心情:（今天心情关键词）\n秘密:（有没有心事，没有就写无）\n场景:（当前所处环境）\n近事:（最近发生的事）";
+                    return "扮演【${widget.role.name}】。${widget.role.longTermMemory.isNotEmpty ? '\n\n【长期记忆】\n${widget.role.longTermMemory}' : ''} $modePrompt$lengthPrompt\n\n人设：${widget.role.persona}。$wbPrompt${_shouldGenerateHeart() ? '\n\n【重要格式要求】每次回复必须严格按以下格式输出，不能省略任何部分：\n[对话]\n（你的回复内容）\n[心声]\n情绪:（一个词）\n想法:（一句话）\n感受:（对用户说话方式的感受）\n想说:（想说没说出口的话）\n状态:（当前在做什么）\n心情:（今天心情关键词）\n秘密:（有没有心事，没有就写无）\n场景:（当前所处环境）\n近事:（最近发生的事）' : ''}";
                   }(),
                 },
                 ...widget.role.messages.reversed
@@ -1743,7 +1786,7 @@ class _CRPState extends State<ChatRoomPage> {
     for (final seg in segments) {
       if (!mounted) return;
       setState(() {
-        widget.role.messages.add({"role": "assistant", "text": seg});
+        widget.role.messages.add({"role": "assistant", "text": seg, "time": DateTime.now().toIso8601String()});
         widget.role.lastMessage = seg;
       });
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1791,16 +1834,18 @@ class _CRPState extends State<ChatRoomPage> {
     return chunks.isEmpty ? [normalized] : chunks;
   }
 
-  // --- [开始替换]：从这里开始选中，直到最后面的 } ---
-  Widget _buildRow(Map<String, dynamic> message) {
-    final isM = message['role'] == 'user';
-    final t = (message['text'] ?? '').toString();
-    final img = (message['image'] ?? '').toString();
-    final kind = (message['kind'] ?? 'text').toString();
-    final extra = (message['extra'] ?? '').toString();
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
+
+Widget _buildRow(Map<String, dynamic> message) {
+  final isM = message['role'] == 'user';
+  final t = (message['text'] ?? '').toString();
+  final img = (message['image'] ?? '').toString();
+  final kind = (message['kind'] ?? 'text').toString();
+  final extra = (message['extra'] ?? '').toString();
+  final timeStr = _formatTime(message['time']);
+
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 12),
+    child: Row(
         mainAxisAlignment:
             isM ? MainAxisAlignment.end : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.end,
@@ -1808,22 +1853,52 @@ class _CRPState extends State<ChatRoomPage> {
           // 1. 对方头像：换成了你喜欢的“线条+色块”土星小星球
           // 对方头像：传入对方的名字作为随机种子
           if (!isM && widget.role.showAvatar)
-            GestureDetector(
-              onTap: () => _showHeartDialog(),
-              child: PlanetAvatar(seed: widget.role.name),
-            ),
+  Column(
+    children: [
+      GestureDetector(
+        onTap: () => _showHeartDialog(),
+        child: PlanetAvatar(seed: widget.role.name),
+      ),
+      if (widget.role.showTime && widget.role.timePosition == "头像下方" && timeStr.isNotEmpty)
+        Text(timeStr, style: const TextStyle(fontSize: 9, color: Colors.white38)),
+    ],
+  ),
+
           if (!isM && widget.role.showAvatar) const SizedBox(width: 8),
 
-          Flexible(
-            child: GestureDetector(
-              onLongPress: () => _confirmDelete(message),
-              child: _bubble(
-                t,
-                isM,
-                imageBase64: img,
-                kind: kind,
-                extra: extra,
-              ),
+Flexible(
+            child: Column(
+              crossAxisAlignment: isM ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              children: [
+                GestureDetector(
+                  onLongPress: () => _confirmDelete(message),
+                  child: widget.role.showTime && widget.role.timePosition == "气泡末尾"
+                      ? Stack(
+                          children: [
+                            _bubble(t, isM, imageBase64: img, kind: kind, extra: extra),
+                            if (timeStr.isNotEmpty)
+                              Positioned(
+                                bottom: 4,
+                                right: isM ? 4 : null,
+                                left: isM ? null : 4,
+                                child: Text(
+                                  timeStr,
+                                  style: const TextStyle(fontSize: 9, color: Colors.white38),
+                                ),
+                              ),
+                          ],
+                        )
+                      : _bubble(t, isM, imageBase64: img, kind: kind, extra: extra),
+                ),
+                if (widget.role.showTime && widget.role.timePosition == "气泡下方" && timeStr.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      timeStr,
+                      style: const TextStyle(fontSize: 10, color: Colors.white38),
+                    ),
+                  ),
+              ],
             ),
           ),
 
@@ -1831,7 +1906,13 @@ class _CRPState extends State<ChatRoomPage> {
           // 2. 我方头像：也统一换成小星球（或者你可以保留你原本的头像）
           // 我方头像：传入我的名字作为随机种子
           if (isM && widget.role.showAvatar)
-            PlanetAvatar(seed: ChatData.userName),
+  Column(
+    children: [
+      PlanetAvatar(seed: ChatData.userName),
+      if (widget.role.showTime && widget.role.timePosition == "头像下方" && timeStr.isNotEmpty)
+        Text(timeStr, style: const TextStyle(fontSize: 9, color: Colors.white38)),
+    ],
+  ),
         ],
       ),
     );
@@ -1894,7 +1975,36 @@ class _CRPState extends State<ChatRoomPage> {
       return contentWidget;
     }
 
-    return CyberGlassContainer(isMe: isM, child: contentWidget);
+    final style =
+        isM ? widget.role.myBubbleStyle : widget.role.theirBubbleStyle;
+    final op = widget.role.bubbleOpacity;
+final bubbleColor = {
+  "透明": Colors.white.withOpacity(op * 0.2),
+  "白":   Colors.white.withOpacity(op),
+  "蓝":   Colors.blueAccent.withOpacity(op),
+  "粉":   Colors.pinkAccent.withOpacity(op),
+  "绿":   Colors.greenAccent.withOpacity(op),
+  "紫":   Colors.purpleAccent.withOpacity(op),
+}[style] ?? Colors.white.withOpacity(op * 0.2);
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(18),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: widget.role.bubbleBlur, sigmaY: widget.role.bubbleBlur),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            color: bubbleColor,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.05),
+              width: 0.4,
+            ),
+          ),
+          child: contentWidget,
+        ),
+      ),
+    );
   }
 
   void _showHeartDialog() {
@@ -2005,6 +2115,59 @@ class _CRPState extends State<ChatRoomPage> {
       ),
     );
   }
+  bool _shouldGenerateHeart() {
+  final mode = widget.role.heartUpdateMode;
+  if (mode == "每次") return true;
+  final count = widget.role.messages.where((m) => m['role'] == 'user').length;
+  if (mode == "每3条") return count % 3 == 0;
+  if (mode == "每5条") return count % 5 == 0;
+  return true;
+}
+String _formatTime(String? isoTime) {
+  if (isoTime == null || isoTime.isEmpty) return '';
+  try {
+    final t = DateTime.parse(isoTime);
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+    final tDate = DateTime(t.year, t.month, t.day);
+    final hm = "${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}";
+    if (tDate == today) return hm;
+    if (tDate == yesterday) return "昨天 $hm";
+    return "${t.month}/${t.day} $hm";
+  } catch (_) {
+    return '';
+  }
+}
+
+Widget _buildTimeDivider(String? isoTime) {
+  if (isoTime == null || isoTime.isEmpty) return const SizedBox.shrink();
+  final label = _formatTime(isoTime);
+  if (label.isEmpty) return const SizedBox.shrink();
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 12),
+    child: Row(
+      children: [
+        const Expanded(child: Divider(color: Colors.white12)),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Text(label, style: const TextStyle(fontSize: 11, color: Colors.white38)),
+        ),
+        const Expanded(child: Divider(color: Colors.white12)),
+      ],
+    ),
+  );
+}
+bool _shouldShowDivider(String? prevTime, String? currTime) {
+  if (prevTime == null || currTime == null) return false;
+  try {
+    final prev = DateTime.parse(prevTime);
+    final curr = DateTime.parse(currTime);
+    return curr.difference(prev).inMinutes >= 5;
+  } catch (_) {
+    return false;
+  }
+}
 }
 
 // --- 频率调节页 (独立于大类，消除嵌套) ---
@@ -2123,6 +2286,40 @@ class _CSPState extends State<ChatSettingsPage> {
       (v) => setState(() => widget.role.showAvatar = v),
     ),
     _sw(
+  "显示时间",
+  widget.role.showTime,
+  (v) => setState(() => widget.role.showTime = v),
+),
+if (widget.role.showTime) ...[
+  const SizedBox(height: 8),
+  Row(
+    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+    children: ["气泡下方", "气泡末尾", "头像下方"].map((opt) {
+      final selected = widget.role.timePosition == opt;
+      return GestureDetector(
+        onTap: () => setState(() => widget.role.timePosition = opt),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: selected ? Colors.blueAccent.withOpacity(0.2) : Colors.transparent,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: selected ? Colors.blueAccent : Colors.white24),
+          ),
+          child: Text(
+            opt,
+            style: TextStyle(
+              color: selected ? Colors.blueAccent : Colors.white38,
+              fontSize: 12,
+            ),
+          ),
+        ),
+      );
+    }).toList(),
+  ),
+  const SizedBox(height: 8),
+],
+    _sw(
       "气泡",
       widget.role.showBubble,
       (v) => setState(() => widget.role.showBubble = v),
@@ -2199,6 +2396,39 @@ class _CSPState extends State<ChatSettingsPage> {
         widget.role.showEmotionInBar,
         (v) => setState(() => widget.role.showEmotionInBar = v),
       ),
+      const Divider(color: Colors.white10),
+      const SizedBox(height: 8),
+      const Text("心声生成频率", style: TextStyle(fontSize: 14)),
+      const SizedBox(height: 8),
+      Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: ["每次", "每3条", "每5条"].map((opt) {
+          final selected = widget.role.heartUpdateMode == opt;
+          return GestureDetector(
+            onTap: () => setState(() => widget.role.heartUpdateMode = opt),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: selected ? Colors.blueAccent.withOpacity(0.2) : Colors.transparent,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: selected ? Colors.blueAccent : Colors.white24),
+              ),
+              child: Text(
+                opt,
+                style: TextStyle(
+                  color: selected ? Colors.blueAccent : Colors.white38,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+      const SizedBox(height: 6),
+      const Text("每N条时只在该条对话才生成心声，节省API额度",
+          style: TextStyle(fontSize: 11, color: Colors.white38)),
+      const SizedBox(height: 8),
       _sw(
         "线下模式",
         widget.role.isOfflineMode,
@@ -2407,13 +2637,150 @@ class _CSPState extends State<ChatSettingsPage> {
     }
   }
 
-  void _bg() async {
-    final r = await ImagePicker().pickImage(source: ImageSource.gallery);
-    if (r != null) {
-      final b = await r.readAsBytes();
-      setState(() => widget.role.chatBackground = base64Encode(b));
-    }
-  }
+ void _bg() {
+  showDialog(
+    context: context,
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setS) => StarThemedDialog(
+        title: "聊天背景",
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // 背景选项列表
+            Row(
+              children: [
+                // 默认背景
+                GestureDetector(
+                  onTap: () {
+                    setS(() => widget.role.selectedBackground = "");
+                    setState(() {});
+                    ChatData.saveAll();
+                  },
+                  child: Container(
+                    width: 80,
+                    height: 120,
+                    margin: const EdgeInsets.only(right: 8),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: widget.role.selectedBackground.isEmpty
+                            ? Colors.blueAccent
+                            : Colors.white24,
+                        width: widget.role.selectedBackground.isEmpty ? 2 : 1,
+                      ),
+                      gradient: const LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [Color(0xFF00040A), Color(0xFF0D1B2A)],
+                      ),
+                    ),
+                    child: const Center(
+                      child: Text("默认", style: TextStyle(fontSize: 12, color: Colors.white54)),
+                    ),
+                  ),
+                ),
+                // 已上传的背景
+                ...widget.role.chatBackgrounds.asMap().entries.map((entry) {
+                  final i = entry.key;
+                  final bg = entry.value;
+                  final isSelected = widget.role.selectedBackground == bg;
+                  return Stack(
+                    children: [
+                      GestureDetector(
+                        onTap: () {
+                          setS(() => widget.role.selectedBackground = bg);
+                          setState(() {});
+                          ChatData.saveAll();
+                        },
+                        child: Container(
+                          width: 80,
+                          height: 120,
+                          margin: const EdgeInsets.only(right: 8),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: isSelected ? Colors.blueAccent : Colors.white24,
+                              width: isSelected ? 2 : 1,
+                            ),
+                            image: DecorationImage(
+                              image: MemoryImage(base64Decode(bg)),
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        ),
+                      ),
+                      // 删除按钮
+                      Positioned(
+                        top: 4,
+                        right: 12,
+                        child: GestureDetector(
+                          onTap: () {
+                            setS(() {
+                              widget.role.chatBackgrounds.removeAt(i);
+                              if (widget.role.selectedBackground == bg) {
+                                widget.role.selectedBackground = "";
+                              }
+                            });
+                            setState(() {});
+                            ChatData.saveAll();
+                          },
+                          child: Container(
+                            width: 20,
+                            height: 20,
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.6),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.close, size: 12, color: Colors.white),
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                }).toList(),
+                // 上传按钮（最多2张）
+                if (widget.role.chatBackgrounds.length < 2)
+                  GestureDetector(
+                    onTap: () async {
+                      final r = await ImagePicker().pickImage(source: ImageSource.gallery);
+                      if (r != null) {
+                        final b = await r.readAsBytes();
+                        final encoded = base64Encode(b);
+                        setS(() {
+                          widget.role.chatBackgrounds.add(encoded);
+                          widget.role.selectedBackground = encoded;
+                        });
+                        setState(() {});
+                        ChatData.saveAll();
+                      }
+                    },
+                    child: Container(
+                      width: 80,
+                      height: 120,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.white24),
+                        color: Colors.white.withOpacity(0.05),
+                      ),
+                      child: const Center(
+                        child: Icon(Icons.add_photo_alternate_outlined, color: Colors.white38, size: 28),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("完成", style: TextStyle(color: Colors.blueAccent)),
+          ),
+        ],
+      ),
+    ),
+  );
+}
 
   void _editCss() {
     final c = TextEditingController(text: widget.role.customBubbleCss);
@@ -2560,61 +2927,490 @@ class _CSPState extends State<ChatSettingsPage> {
     Navigator.pop(context);
   }
 
-  Widget _bubbleColorPicker(
-    String label,
-    String current,
-    Function(String) onChange,
-  ) {
-    final options = [
-      {"name": "透明", "color": Colors.white.withOpacity(0.05)},
-      {"name": "白", "color": Colors.white.withOpacity(0.15)},
-      {"name": "蓝", "color": Colors.blueAccent.withOpacity(0.15)},
-      {"name": "粉", "color": Colors.pinkAccent.withOpacity(0.15)},
-      {"name": "绿", "color": Colors.greenAccent.withOpacity(0.15)},
-      {"name": "紫", "color": Colors.purpleAccent.withOpacity(0.15)},
-    ];
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+Widget _bubbleColorPicker(
+  String label,
+  String current,
+  Function(String) onChange,
+) {
+  final options = [
+    {"name": "透明", "color": Colors.white.withOpacity(0.05)},
+    {"name": "白", "color": Colors.white.withOpacity(0.15)},
+    {"name": "蓝", "color": Colors.blueAccent.withOpacity(0.15)},
+    {"name": "粉", "color": Colors.pinkAccent.withOpacity(0.15)},
+    {"name": "绿", "color": Colors.greenAccent.withOpacity(0.15)},
+    {"name": "紫", "color": Colors.purpleAccent.withOpacity(0.15)},
+  ];
+
+  // 固定功能圆：彩虹、透明度、磨砂
+  final fixedCircles = [
+
+// 色相选择圆圈
+GestureDetector(
+  onTap: () {
+    double hue = 0;
+    double sat = 1.0;
+    double light = 0.5;
+    final ctrl = TextEditingController();
+
+    // 初始化：如果当前是十六进制颜色，解析出HSL
+    try {
+      if (current.startsWith('#') && current.length == 7) {
+        final c = Color(int.parse(current.replaceFirst('#', '0xFF')));
+        final hsl = HSLColor.fromColor(c);
+        hue = hsl.hue;
+        sat = hsl.saturation;
+        light = hsl.lightness;
+      }
+    } catch (_) {}
+
+    String toHex(double h, double s, double l) {
+      final c = HSLColor.fromAHSL(1.0, h, s, l).toColor();
+      return '#${c.value.toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}';
+    }
+
+    ctrl.text = toHex(hue, sat, light);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setS) {
+          return StarThemedDialog(
+            title: "选择颜色",
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // 预览色块
+                Container(
+                  width: double.infinity,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: HSLColor.fromAHSL(1.0, hue, sat, light).toColor(),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // 色相条
+const Align(
+  alignment: Alignment.centerLeft,
+  child: Text("色相", style: TextStyle(fontSize: 12, color: Colors.white38)),
+),
+const SizedBox(height: 6),
+LayoutBuilder(
+  builder: (ctx, constraints) {
+    final w = constraints.maxWidth;
+    return GestureDetector(
+      onTapDown: (d) {
+        setS(() {
+          hue = (d.localPosition.dx / w * 360).clamp(0, 360);
+          ctrl.text = toHex(hue, sat, light);
+        });
+      },
+      onHorizontalDragUpdate: (d) {
+        setS(() {
+          hue = (d.localPosition.dx / w * 360).clamp(0, 360);
+          ctrl.text = toHex(hue, sat, light);
+        });
+      },
+      child: Stack(
         children: [
-          Text(label, style: const TextStyle(fontSize: 14)),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            children:
-                options.map((opt) {
-                  final isSelected = current == opt["name"];
-                  return GestureDetector(
-                    onTap: () => onChange(opt["name"] as String),
-                    child: Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: opt["color"] as Color,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color:
-                              isSelected ? Colors.blueAccent : Colors.white24,
-                          width: isSelected ? 2 : 1,
-                        ),
-                      ),
-                      child:
-                          isSelected
-                              ? const Icon(
-                                Icons.check,
-                                size: 16,
-                                color: Colors.blueAccent,
-                              )
-                              : null,
-                    ),
-                  );
-                }).toList(),
+          Container(
+            height: 28,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              gradient: const LinearGradient(colors: [
+                Color(0xFFFF0000), Color(0xFFFFFF00), Color(0xFF00FF00),
+                Color(0xFF00FFFF), Color(0xFF0000FF), Color(0xFFFF00FF), Color(0xFFFF0000),
+              ]),
+            ),
+          ),
+          Positioned(
+            left: (hue / 360 * w - 14).clamp(0, w - 28),
+            top: 0,
+            child: Container(
+              width: 28, height: 28,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: HSLColor.fromAHSL(1.0, hue, 1.0, 0.5).toColor(),
+                border: Border.all(color: Colors.white, width: 2),
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 4)],
+              ),
+            ),
           ),
         ],
       ),
     );
-  }
+  },
+),
+const SizedBox(height: 8),
+                const SizedBox(height: 8),
+
+                // 饱和度条
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text("饱和度", style: TextStyle(fontSize: 12, color: Colors.white38)),
+                ),
+                Slider(
+                  value: sat,
+                  min: 0,
+                  max: 1,
+                  activeColor: HSLColor.fromAHSL(1.0, hue, 1.0, 0.5).toColor(),
+                  onChanged: (v) {
+                    setS(() { sat = v; ctrl.text = toHex(hue, sat, light); });
+                  },
+                ),
+                const SizedBox(height: 4),
+
+                // 亮度条
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text("亮度", style: TextStyle(fontSize: 12, color: Colors.white38)),
+                ),
+                Slider(
+                  value: light,
+                  min: 0,
+                  max: 1,
+                  activeColor: Colors.white70,
+                  onChanged: (v) {
+                    setS(() { light = v; ctrl.text = toHex(hue, sat, light); });
+                  },
+                ),
+                const SizedBox(height: 8),
+
+                // 手动输入颜色代码
+                TextField(
+                  controller: ctrl,
+                  style: const TextStyle(fontSize: 13),
+                  decoration: InputDecoration(
+                    hintText: "#FFFFFF",
+                    labelText: "颜色代码",
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onChanged: (v) {
+                    try {
+                      if (v.startsWith('#') && v.length == 7) {
+                        final c = Color(int.parse(v.replaceFirst('#', '0xFF')));
+                        final hsl = HSLColor.fromColor(c);
+                        setS(() {
+                          hue = hsl.hue;
+                          sat = hsl.saturation;
+                          light = hsl.lightness;
+                        });
+                      }
+                    } catch (_) {}
+                  },
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text("取消", style: TextStyle(color: Colors.white38)),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  final hex = toHex(hue, sat, light);
+                  onChange(hex);
+                  Navigator.pop(ctx);
+                },
+                child: const Text("确认"),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  },
+  child: Container(
+    width: 36, height: 36,
+    decoration: BoxDecoration(
+      shape: BoxShape.circle,
+      border: Border.all(color: Colors.white38),
+      gradient: const SweepGradient(colors: [
+        Colors.red, Colors.yellow, Colors.green,
+        Colors.blue, Colors.purple, Colors.red,
+      ]),
+    ),
+    child: const Icon(Icons.add, size: 16, color: Colors.white),
+  ),
+),
+    // 透明度
+    GestureDetector(
+      onTap: () {
+        double tempOpacity = widget.role.bubbleOpacity;
+        showDialog(
+          context: context,
+          builder: (ctx) => StatefulBuilder(
+            builder: (ctx, setS) => StarThemedDialog(
+              title: "气泡透明度",
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    "${(tempOpacity * 100).toStringAsFixed(0)}%",
+                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  ),
+                  Slider(
+                    value: tempOpacity,
+                    min: 0.0,
+                    max: 1.0,
+                    activeColor: Colors.blueAccent,
+                    onChanged: (v) => setS(() => tempOpacity = v),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text("取消", style: TextStyle(color: Colors.white38)),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    setState(() => widget.role.bubbleOpacity = tempOpacity);
+                    ChatData.saveAll();
+                    Navigator.pop(ctx);
+                  },
+                  child: const Text("确认"),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+      child: Container(
+        width: 36, height: 36,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.white38),
+          gradient: LinearGradient(
+            colors: [Colors.white.withOpacity(0.05), Colors.white.withOpacity(0.8)],
+          ),
+        ),
+        child: const Center(
+          child: Text("α", style: TextStyle(fontSize: 14, color: Colors.white)),
+        ),
+      ),
+    ),
+    // 磨砂
+    GestureDetector(
+      onTap: () {
+        double tempBlur = widget.role.bubbleBlur;
+        showDialog(
+          context: context,
+          builder: (ctx) => StatefulBuilder(
+            builder: (ctx, setS) => StarThemedDialog(
+              title: "磨砂强度",
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    "${tempBlur.toStringAsFixed(0)}",
+                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  ),
+                  Slider(
+                    value: tempBlur,
+                    min: 0.0,
+                    max: 30.0,
+                    activeColor: Colors.blueAccent,
+                    onChanged: (v) => setS(() => tempBlur = v),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text("取消", style: TextStyle(color: Colors.white38)),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    setState(() => widget.role.bubbleBlur = tempBlur);
+                    ChatData.saveAll();
+                    Navigator.pop(ctx);
+                  },
+                  child: const Text("确认"),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+      child: Container(
+        width: 36, height: 36,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.white38),
+          color: Colors.white.withOpacity(0.1),
+        ),
+        child: ClipOval(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 3, sigmaY: 3),
+            child: const Center(
+              child: Text("blur", style: TextStyle(fontSize: 9, color: Colors.white)),
+            ),
+          ),
+        ),
+      ),
+    ),
+  ];
+
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 8),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(label, style: const TextStyle(fontSize: 14)),
+            const Spacer(),
+            GestureDetector(
+              onTap: () {
+                showDialog(
+                  context: context,
+                  builder: (ctx) => StarThemedDialog(
+                    title: "保存预设",
+                    content: const Text(
+                      "将当前颜色、透明度、磨砂强度保存为预设？",
+                      style: TextStyle(color: Colors.white54),
+                      textAlign: TextAlign.center,
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        child: const Text("取消", style: TextStyle(color: Colors.white38)),
+                      ),
+                      ElevatedButton(
+                        onPressed: () {
+                          if (widget.role.bubblePresets.length >= 11) {
+                            Navigator.pop(ctx);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text("预设已满，请先删除一个")),
+                            );
+                            return;
+                          }
+                          setState(() {
+                            widget.role.bubblePresets.add({
+                              "color": current,
+                              "opacity": widget.role.bubbleOpacity,
+                              "blur": widget.role.bubbleBlur,
+                            });
+                          });
+                          ChatData.saveAll();
+                          Navigator.pop(ctx);
+                        },
+                        child: const Text("保存"),
+                      ),
+                    ],
+                  ),
+                );
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.blueAccent.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.blueAccent.withOpacity(0.3)),
+                ),
+                child: const Text("+ 保存预设", style: TextStyle(fontSize: 11, color: Colors.blueAccent)),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            // 默认6个颜色
+            ...options.map((opt) {
+              final isSelected = current == opt["name"];
+              return GestureDetector(
+                onTap: () => onChange(opt["name"] as String),
+                child: Container(
+                  width: 36, height: 36,
+                  decoration: BoxDecoration(
+                    color: opt["color"] as Color,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: isSelected ? Colors.blueAccent : Colors.white24,
+                      width: isSelected ? 2 : 1,
+                    ),
+                  ),
+                  child: isSelected
+                      ? const Icon(Icons.check, size: 16, color: Colors.blueAccent)
+                      : null,
+                ),
+              );
+            }),
+            // 用户预设
+            ...widget.role.bubblePresets.asMap().entries.map((entry) {
+              final i = entry.key;
+              final preset = entry.value;
+              final presetColor = preset["color"] as String;
+              final isSelected = current == presetColor;
+              Color displayColor = Colors.white.withOpacity(0.15);
+              try {
+                if (presetColor.startsWith('#')) {
+                  displayColor = Color(int.parse(presetColor.replaceFirst('#', '0xFF')));
+                }
+              } catch (_) {}
+              return GestureDetector(
+                onTap: () {
+                  onChange(presetColor);
+                  setState(() {
+                    widget.role.bubbleOpacity = (preset["opacity"] as double);
+                    widget.role.bubbleBlur = (preset["blur"] as double);
+                  });
+                  ChatData.saveAll();
+                },
+                onLongPress: () {
+                  showDialog(
+                    context: context,
+                    builder: (ctx) => StarThemedDialog(
+                      title: "删除预设",
+                      content: const Text("确定删除这个预设吗？", textAlign: TextAlign.center),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          child: const Text("取消", style: TextStyle(color: Colors.white38)),
+                        ),
+                        ElevatedButton(
+                          onPressed: () {
+                            setState(() => widget.role.bubblePresets.removeAt(i));
+                            ChatData.saveAll();
+                            Navigator.pop(ctx);
+                          },
+                          child: const Text("删除", style: TextStyle(color: Colors.redAccent)),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+                child: Container(
+                  width: 36, height: 36,
+                  decoration: BoxDecoration(
+                    color: displayColor.withOpacity(preset["opacity"] as double),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: isSelected ? Colors.blueAccent : Colors.white24,
+                      width: isSelected ? 2 : 1,
+                    ),
+                  ),
+                  child: isSelected
+                      ? const Icon(Icons.check, size: 16, color: Colors.white)
+                      : null,
+                ),
+              );
+            }),
+            // 固定功能圆
+            ...fixedCircles,
+          ],
+        ),
+      ],
+    ),
+  );
+}
+
 }
 
 // --- 全新拟真语音气泡组件 ---

@@ -119,7 +119,8 @@ class _StardustWarehousePageState extends State<StardustWarehousePage> {
     }
     if (selected.contains('图片缓存')) {
       for (final role in ChatData.roles) {
-        role.chatBackground = '';
+        role.chatBackgrounds = [];
+role.selectedBackground = '';
         for (final msg in role.messages) {
           msg.remove('image');
         }
@@ -173,8 +174,9 @@ class _StardustWarehousePageState extends State<StardustWarehousePage> {
     int imgBytes = 0;
     for (final role in ChatData.roles) {
       if (role.avatar.isNotEmpty) imgBytes += role.avatar.length * 3 ~/ 4;
-      if (role.chatBackground.isNotEmpty)
-        imgBytes += role.chatBackground.length * 3 ~/ 4;
+      for (final bg in role.chatBackgrounds) {
+  imgBytes += bg.length * 3 ~/ 4;
+}
     }
     if (ChatData.userAvatar.isNotEmpty)
       imgBytes += ChatData.userAvatar.length * 3 ~/ 4;
