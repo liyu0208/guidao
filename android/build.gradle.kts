@@ -1,5 +1,6 @@
 buildscript {
-    ext.set("kotlin_version", "1.9.0")
+    val kotlin_version: String by extra
+    extra.set("kotlin_version", "1.9.0")
     
     repositories {
         google()
@@ -8,7 +9,7 @@ buildscript {
     
     dependencies {
         classpath("com.android.tools.build:gradle:7.4.0")
-        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:${ext.get("kotlin_version")}")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:${extra.get("kotlin_version")}")
     }
 }
 
