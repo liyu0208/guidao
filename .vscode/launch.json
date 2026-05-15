@@ -1,0 +1,18 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+    
+    
+        {
+            "name": "星轨 (稳定模式)",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/main.dart",
+            "args": [
+                "--web-browser-flag", "--disable-web-security",
+                "--web-hostname", "127.0.0.1",
+                "--web-port", "8080"
+            ]
+        }
+    ]
+}
