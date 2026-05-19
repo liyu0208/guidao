@@ -164,111 +164,18 @@ class _ChatPageState extends State<ChatPage> {
           MeTab(onRefresh: _refresh),
         ],
       ),
-      bottomNavigationBar: ClipRRect(
-        borderRadius: BorderRadius.circular(35),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-          child: Container(
-            height: 70,
-            margin: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-            decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.5),
-              borderRadius: BorderRadius.circular(35),
-              border: Border.all(color: Colors.white10),
-            ),
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                // 胶囊动画
-                Stack(
-                  children: List.generate(4, (i) {
-                    return Align(
-                      alignment: Alignment(-0.94 + (i * 0.63), 0),
-                      child: TweenAnimationBuilder<double>(
-                        key: ValueKey(i),
-                        tween: Tween(begin: 0.0, end: _idx == i ? 1.0 : 0.0),
-                        duration: const Duration(milliseconds: 500),
-                        curve: Curves.easeOutExpo,
-                        builder: (ctx, v, _) {
-                          // v从0到1：先变圆再变胶囊
-                          final w =
-                              v < 0.3
-                                  ? v /
-                                      0.3 *
-                                      0.1 // 0~0.3: 从0扩展到圆形
-                                  : 0.1 +
-                                      (v - 0.3) / 0.7 * 0.12; // 0.3~1: 从圆扩展到胶囊
-                          return FractionallySizedBox(
-                            widthFactor: w.clamp(0.0, 0.22),
-                            child: Container(
-                              height: 42,
-                              decoration: BoxDecoration(
-                                color: const Color.fromARGB(
-                                  90,
-                                  123,
-                                  178,
-                                  255,
-                                ).withOpacity(0.25 * v),
-                                borderRadius: BorderRadius.circular(21),
-                                boxShadow:
-                                    v > 0.1
-                                        ? [
-                                          BoxShadow(
-                                            color: const Color(
-                                              0xFF7B8FFF,
-                                            ).withOpacity(0.3 * v),
-                                            blurRadius: 12,
-                                          ),
-                                        ]
-                                        : [],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    );
-                  }),
-                ),
-
-                // 图标行
-                // 图标行
-                Row(
-                  children: List.generate(4, (i) {
-                    final icons = [
-                      Icons.chat_bubble_outline,
-                      Icons.people_outline,
-                      Icons.auto_awesome_mosaic,
-                      Icons.person_outline,
-                    ];
-                    return Expanded(
-                      child: GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: () {
-                          setState(() => _idx = i);
-                          _pageCtrl.animateToPage(
-                            i,
-                            duration: const Duration(milliseconds: 300),
-                            curve: Curves.easeInOut,
-                          );
-                        },
-                        child: Icon(
-                          icons[i],
-                          size: 24,
-                          // 选中的图标变成亮蓝色，未选中的是暗灰色
-                          color:
-                              _idx == i
-                                  ? const Color.fromARGB(255, 146, 181, 226)
-                                  : Colors.white24,
-                        ),
-                      ),
-                    );
-                  }),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
+bottomNavigationBar: _StarTabBar(
+  currentIndex: _idx,
+  onTap: (i) {
+    setState(() => _idx = i);
+    _pageCtrl.animateToPage(
+      i,
+      duration: const Duration(milliseconds: 380),
+      curve: Curves.easeOutCubic,
+    );
+  },
+),
+  
     ),
   );
 
@@ -662,212 +569,339 @@ class MsgTab extends StatelessWidget {
 }
 
 // --- Tab: 星友列表 ---
-// --- [开始替换]：星友列表科技化 ---
 class FriendsTab extends StatelessWidget {
   final VoidCallback onRefresh;
   const FriendsTab({super.key, required this.onRefresh});
-
+ 
   @override
-  Widget build(BuildContext context) => Stack(
-    children: [
-      ListView.builder(
-        padding: const EdgeInsets.fromLTRB(0, 80, 0, 10),
-        itemCount: ChatData.roles.length,
-        itemBuilder:
-            (ctx, i) => Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.04),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: Colors.white.withOpacity(0.08),
-                  width: 0.8,
-                ),
-              ),
-              child: Row(
-                children: [
-                  ChatData.roles[i].avatar.isEmpty
-                      ? PlanetAvatar(seed: ChatData.roles[i].name)
-                      : ClipRRect(
-                        borderRadius: BorderRadius.circular(
-                          ChatData.roles[i].avatarRadius,
-                        ),
-                        child: Image.memory(
-                          base64Decode(ChatData.roles[i].avatar),
-                          width: 44,
-                          height: 44,
-                          fit: BoxFit.cover,
-                        ),
+  Widget build(BuildContext context) {
+    return CustomScrollView(
+      slivers: [
+        // 顶部标题区
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 64, 24, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 分节标签
+                Row(children: [
+                  Container(width: 28, height: 1,
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Colors.transparent, Color(0xFF4D9FFF)],
                       ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () {
-                        Future.delayed(const Duration(milliseconds: 150), () {
-                          if (context.mounted) {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder:
-                                    (c) =>
-                                        ChatRoomPage(role: ChatData.roles[i]),
-                              ),
-                            );
-                          }
-                        });
-                      },
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            ChatData.roles[i].remark.isEmpty
-                                ? ChatData.roles[i].name
-                                : ChatData.roles[i].remark,
-                            style: const TextStyle(
-                              fontSize: 15,
-                              color: Colors.white,
-                              fontWeight: FontWeight.w400,
-                              letterSpacing: 0.5,
-                            ),
+                    )),
+                  const SizedBox(width: 10),
+                  const Text("STELLAR REGISTRY",
+                    style: TextStyle(
+                      fontSize: 9, letterSpacing: 5,
+                      color: Color(0xFF4D9FFF), fontWeight: FontWeight.w300,
+                    )),
+                ]),
+                const SizedBox(height: 10),
+                // 大标题
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    const Text("星友",
+                      style: TextStyle(
+                        fontSize: 32, fontWeight: FontWeight.w200,
+                        color: Colors.white, letterSpacing: 6,
+                      )),
+                    const SizedBox(width: 12),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Text(
+                        "${ChatData.roles.length} 颗星",
+                        style: const TextStyle(
+                          fontSize: 11, color: Color(0xFF4A6688),
+                          letterSpacing: 2,
+                        )),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                // 细分割线
+                Container(height: 1,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(colors: [
+                      const Color(0xFF4D9FFF).withOpacity(0.4),
+                      Colors.transparent,
+                    ]),
+                  )),
+                const SizedBox(height: 20),
+              ],
+            ),
+          ),
+        ),
+ 
+        // 星档案列表
+AnimationLimiter(
+  child: SliverPadding(
+    padding: const EdgeInsets.fromLTRB(24, 0, 24, 40),
+    sliver: SliverList(
+      delegate: SliverChildBuilderDelegate(
+        (ctx, i) => AnimationConfiguration.staggeredList(
+          position: i,
+          duration: const Duration(milliseconds: 450),
+          child: SlideAnimation(
+            horizontalOffset: -20,
+            child: FadeInAnimation(
+              child: _FriendArchiveCard(
+                role: ChatData.roles[i],
+                index: i,
+                onTap: () => Navigator.push(ctx,
+                  MaterialPageRoute(
+                    builder: (_) => ChatRoomPage(role: ChatData.roles[i]),
+                  ),
+                ),
+                onDelete: () {
+                  showDialog(
+                    context: ctx,
+                    builder: (_) => StarThemedDialog(
+                      title: "移除星档案",
+                      content: Text(
+                        "确定移除「${ChatData.roles[i].remark.isEmpty ? ChatData.roles[i].name : ChatData.roles[i].remark}」的星档案？\n所有通讯记录将一并清除。",
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Color(0xFFA8C4E0), fontSize: 13),
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          child: const Text("保留",
+                            style: TextStyle(color: Color(0xFF4A6688))),
+                        ),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.redAccent.withOpacity(0.15),
+                            side: const BorderSide(
+                              color: Colors.redAccent, width: 0.5),
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            "ID: 已加密",
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Colors.white.withOpacity(0.25),
-                            ),
-                          ),
+                          onPressed: () {
+                            ChatData.roles.removeAt(i);
+                            ChatData.saveAll();
+                            Navigator.pop(ctx);
+                            onRefresh();
+                          },
+                          child: const Text("移除",
+                            style: TextStyle(color: Colors.redAccent)),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+        childCount: ChatData.roles.length,
+      ),
+    ),
+  ),
+),
+      ],
+    );
+  }
+}
+ 
+// ── 单张星档案卡片 ──────────────────────────────────────────────────
+class _FriendArchiveCard extends StatefulWidget {
+  final ChatRole role;
+  final int index;
+  final VoidCallback onTap;
+  final VoidCallback onDelete;
+ 
+  const _FriendArchiveCard({
+    required this.role,
+    required this.index,
+    required this.onTap,
+    required this.onDelete,
+  });
+ 
+  @override
+  State<_FriendArchiveCard> createState() => _FriendArchiveCardState();
+}
+ 
+class _FriendArchiveCardState extends State<_FriendArchiveCard>
+    with SingleTickerProviderStateMixin {
+  bool _pressed = false;
+  late AnimationController _ctrl;
+  late Animation<double> _anim;
+ 
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 350));
+    _anim = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
+  }
+ 
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+ 
+  void _setPress(bool v) {
+    setState(() => _pressed = v);
+    if (v) _ctrl.forward(); else _ctrl.reverse();
+  }
+ 
+  @override
+  Widget build(BuildContext context) {
+    // 序号标签：01 02 03...
+    final indexLabel =
+        (widget.index + 1).toString().padLeft(2, '0');
+ 
+    return GestureDetector(
+      onTapDown: (_) => _setPress(true),
+      onTapUp: (_) { _setPress(false); widget.onTap(); },
+      onTapCancel: () => _setPress(false),
+      child: AnimatedBuilder(
+        animation: _anim,
+        builder: (_, __) => Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          decoration: BoxDecoration(
+            // 按下时顶部扫光线
+            border: Border(
+              top: BorderSide(
+                color: const Color(0xFF4D9FFF)
+                    .withOpacity(_anim.value * 0.8),
+                width: 1,
+              ),
+              left: BorderSide(
+                  color: Colors.white.withOpacity(0.04)),
+              right: BorderSide(
+                  color: Colors.white.withOpacity(0.04)),
+              bottom: BorderSide(
+                  color: Colors.white.withOpacity(0.04)),
+            ),
+            color: Colors.white
+                .withOpacity(0.02 + _anim.value * 0.03),
+          ),
+          child: Stack(
+            children: [
+              // 左上角辉光（按下时出现）
+              if (_anim.value > 0.01)
+                Positioned(
+                  top: 0, left: 0,
+                  child: Container(
+                    width: 120, height: 80,
+                    decoration: BoxDecoration(
+                      gradient: RadialGradient(
+                        colors: [
+                          const Color(0xFF4D9FFF)
+                              .withOpacity(0.06 * _anim.value),
+                          Colors.transparent,
                         ],
                       ),
                     ),
                   ),
-                  GestureDetector(
-                    onTap: () {
-                      showDialog(
-                        context: context,
-                        builder:
-                            (ctx) => StarThemedDialog(
-                              title: "删除星友",
-                              content: Text(
-                                "确定删除「${ChatData.roles[i].remark.isEmpty ? ChatData.roles[i].name : ChatData.roles[i].remark}」吗？\n聊天记录将一并删除。",
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(color: Colors.white54),
-                              ),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.pop(ctx),
-                                  child: const Text(
-                                    "取消",
-                                    style: TextStyle(color: Colors.white38),
-                                  ),
-                                ),
-                                ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.redAccent
-                                        .withOpacity(0.2),
-                                  ),
-                                  onPressed: () {
-                                    ChatData.roles.removeAt(i);
-                                    ChatData.saveAll();
-                                    Navigator.pop(ctx);
-                                    onRefresh();
-                                  },
-                                  child: const Text(
-                                    "删除",
-                                    style: TextStyle(color: Colors.redAccent),
-                                  ),
-                                ),
-                              ],
-                            ),
-                      );
-                    },
-                    child: const Icon(
-                      Icons.delete_outline,
-                      color: Colors.white24,
-                      size: 18,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-      ),
-      Positioned(
-        top: 40,
-        left: 0,
-        right: 0,
-        child: Text(
-          "Stars",
-          style: TextStyle(
-            fontSize: 36,
-            color: Colors.white30,
-            fontWeight: FontWeight.w100,
-            letterSpacing: 12,
-            fontStyle: FontStyle.italic,
-            fontFamily: 'serif',
-          ),
-        ),
-      ),
-    ],
-  );
-}
-
-// --- Tab: 我 ---
-// --- 这一段完整替换你现在的 MeTab ---
-class MeTab extends StatelessWidget {
-  final VoidCallback onRefresh;
-  const MeTab({super.key, required this.onRefresh});
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.only(top: 60),
-      children: [
-        // 顶部头像区
-        Container(
-          padding: const EdgeInsets.fromLTRB(2, 2, 2, 2),
-          child: Row(
-            children: [
-              GestureDetector(
-                child:
-                    ChatData.userAvatar.isEmpty
-                        ? PlanetAvatar(
-                          seed: ChatData.userName,
-                          size: 60,
-                          radius: 20,
-                        )
-                        : ClipRRect(
-                          borderRadius: BorderRadius.circular(20),
-                          child: Image.memory(
-                            base64Decode(ChatData.userAvatar),
-                            width: 60,
-                            height: 60,
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                ),
+ 
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 14, vertical: 14),
+                child: Row(
                   children: [
-                    Text(
-                      ChatData.userName,
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.white,
-                        letterSpacing: 0.5,
+                    // 序号
+                    SizedBox(
+                      width: 28,
+                      child: Text(indexLabel,
+                        style: TextStyle(
+                          fontSize: 10, letterSpacing: 1,
+                          color: const Color(0xFF4D9FFF)
+                              .withOpacity(0.5 + _anim.value * 0.4),
+                          fontWeight: FontWeight.w300,
+                        )),
+                    ),
+ 
+                    // 头像
+                    widget.role.avatar.isEmpty
+                        ? PlanetAvatar(
+                            seed: widget.role.name, size: 44,
+                            radius: widget.role.avatarRadius)
+                        : ClipRRect(
+                            borderRadius: BorderRadius.circular(
+                                widget.role.avatarRadius),
+                            child: Image.memory(
+                              base64Decode(widget.role.avatar),
+                              width: 44, height: 44,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                    const SizedBox(width: 14),
+ 
+                    // 文字信息
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // 名字
+                          Text(
+                            widget.role.remark.isEmpty
+                                ? widget.role.name
+                                : widget.role.remark,
+                            style: TextStyle(
+                              fontSize: 15,
+                              color: _pressed
+                                  ? const Color(0xFFC8E0FF)
+                                  : Colors.white.withOpacity(0.8),
+                              fontWeight: FontWeight.w300,
+                              letterSpacing: 0.8,
+                            )),
+                          const SizedBox(height: 5),
+                          // 档案状态行
+                          Row(children: [
+                            Container(
+                              width: 4, height: 4,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: const Color(0xFF4D9FFF)
+                                    .withOpacity(0.6),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFF4D9FFF)
+                                        .withOpacity(0.4),
+                                    blurRadius: 4,
+                                  )
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              "档案已加密  ·  频段接入中",
+                              style: const TextStyle(
+                                fontSize: 10,
+                                color: Color(0xFF4A6688),
+                                letterSpacing: 0.5,
+                              )),
+                          ]),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      ChatData.userSign,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.white.withOpacity(0.4),
-                      ),
+ 
+                    // 右侧操作区
+                    Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // 进入箭头
+                        AnimatedOpacity(
+                          duration: const Duration(milliseconds: 200),
+                          opacity: _pressed ? 1.0 : 0.3,
+                          child: const Icon(Icons.arrow_forward,
+                              size: 13, color: Color(0xFF4D9FFF)),
+                        ),
+                        const SizedBox(height: 12),
+                        // 删除
+                        GestureDetector(
+                          onTap: widget.onDelete,
+                          child: const Icon(Icons.delete_outline,
+                              size: 14, color: Color(0xFF4A6688)),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -875,132 +909,428 @@ class MeTab extends StatelessWidget {
             ],
           ),
         ),
-
-        // 心情状态
-        if (ChatData.userMood.isNotEmpty)
-          Container(
-            margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.04),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: Colors.white.withOpacity(0.08)),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.mood, size: 14, color: Colors.amberAccent),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    ChatData.userMood,
-                    style: const TextStyle(fontSize: 12, color: Colors.white70),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-        // 统计卡片
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            children: [
-              _statCard("星友", "${ChatData.roles.length}", Icons.people_outline),
-              const SizedBox(width: 12),
-              _statCard(
-                "消息",
-                "${ChatData.roles.fold(0, (s, r) => s + r.messages.length)}",
-                Icons.chat_bubble_outline,
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 20),
-
-        // 功能列表
-        _menuItem(Icons.palette_outlined, "美化", "自定义外观"),
-        _menuItem(Icons.auto_awesome, "今日星历", "查看日记"),
-        _menuItem(Icons.track_changes_rounded, "星轨打卡", "查看习惯"),
-        _menuItem(Icons.dark_mode, "今日月相", "查看周期"),
-        _menuItem(Icons.settings_outlined, "设置", "个性化"),
-        const SizedBox(height: 30),
-      ],
-    );
-  }
-
-  // 统计卡片零件
-  Widget _statCard(String label, String value, IconData icon) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.04),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withOpacity(0.08)),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, size: 20, color: Colors.white38),
-            const SizedBox(width: 10),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.white,
-                  ),
-                ),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Colors.white.withOpacity(0.35),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _menuItem(IconData icon, String title, String subtitle) {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.04),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withOpacity(0.08)),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 18, color: Colors.white54),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              title,
-              style: const TextStyle(fontSize: 14, color: Colors.white70),
-            ),
-          ),
-          Text(
-            subtitle,
-            style: TextStyle(
-              fontSize: 11,
-              color: Colors.white.withOpacity(0.25),
-            ),
-          ),
-          const SizedBox(width: 6),
-          const Icon(Icons.chevron_right, size: 16, color: Colors.white24),
-        ],
       ),
     );
   }
 }
+ 
+// ── MeTab：星历档案面板 ─────────────────────────────────────────────
+class MeTab extends StatelessWidget {
+  final VoidCallback onRefresh;
+  const MeTab({super.key, required this.onRefresh});
+ 
+  @override
+  Widget build(BuildContext context) {
+    final totalMsgs =
+        ChatData.roles.fold(0, (s, r) => s + r.messages.length);
+ 
+    return ListView(
+      padding: EdgeInsets.zero,
+      children: [
+        // ── 顶部身份区 ────────────────────────────────────────────
+        _buildIdentitySection(context),
+ 
+        // ── 数据统计带 ────────────────────────────────────────────
+        _buildStatsBand(totalMsgs),
+ 
+        const SizedBox(height: 24),
+ 
+        // ── 分节标题 ─────────────────────────────────────────────
+        _sectionLabel("NAVIGATION"),
+        const SizedBox(height: 8),
+ 
+        // ── 功能导航 ─────────────────────────────────────────────
+        _NavItem(
+          icon: Icons.auto_awesome,
+          label: "今日星历",
+          sub: "查看日记",
+          accentColor: const Color(0xFF7DC4FF),
+        ),
+        _NavItem(
+          icon: Icons.track_changes_rounded,
+          label: "星轨打卡",
+          sub: "查看习惯",
+          accentColor: const Color(0xFF4D9FFF),
+        ),
+        _NavItem(
+          icon: Icons.dark_mode,
+          label: "今日月相",
+          sub: "查看周期",
+          accentColor: const Color(0xFFA8C4E0),
+        ),
+        _NavItem(
+          icon: Icons.palette_outlined,
+          label: "外观美化",
+          sub: "自定义主题",
+          accentColor: const Color(0xFF9BBBFF),
+        ),
+        _NavItem(
+          icon: Icons.settings_outlined,
+          label: "系统设置",
+          sub: "个性化配置",
+          accentColor: const Color(0xFF4A6688),
+        ),
+ 
+        const SizedBox(height: 32),
+ 
+        // ── 底部铭言 ──────────────────────────────────────────────
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 28),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(height: 1,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(colors: [
+                    const Color(0xFF4D9FFF).withOpacity(0.3),
+                    Colors.transparent,
+                  ]),
+                )),
+              const SizedBox(height: 14),
+              Text(
+                ChatData.userMood.isNotEmpty
+                    ? ChatData.userMood
+                    : "星轨无声，频段常开",
+                style: const TextStyle(
+                  fontSize: 11, color: Color(0xFF4A6688),
+                  letterSpacing: 2, fontStyle: FontStyle.italic,
+                )),
+            ],
+          ),
+        ),
+        const SizedBox(height: 40),
+      ],
+    );
+  }
+ 
+  // 顶部身份区
+  Widget _buildIdentitySection(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(24, 64, 24, 28),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 分节标签
+          Row(children: [
+            Container(width: 28, height: 1,
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.transparent, Color(0xFF4D9FFF)],
+                ),
+              )),
+            const SizedBox(width: 10),
+            const Text("STELLAR IDENTITY",
+              style: TextStyle(
+                fontSize: 9, letterSpacing: 5,
+                color: Color(0xFF4D9FFF), fontWeight: FontWeight.w300,
+              )),
+          ]),
+          const SizedBox(height: 24),
+ 
+          // 头像 + 名字横排
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // 头像带外圈装饰
+              Stack(
+                alignment: Alignment.center,
+                children: [
+                  // 外圈细边
+                  Container(
+                    width: 72, height: 72,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: const Color(0xFF4D9FFF).withOpacity(0.25),
+                        width: 1,
+                      ),
+                    ),
+                  ),
+                  // 头像
+                  ChatData.userAvatar.isEmpty
+                      ? PlanetAvatar(
+                          seed: ChatData.userName, size: 58, radius: 18)
+                      : ClipRRect(
+                          borderRadius: BorderRadius.circular(18),
+                          child: Image.memory(
+                            base64Decode(ChatData.userAvatar),
+                            width: 58, height: 58, fit: BoxFit.cover,
+                          ),
+                        ),
+                  // 右下角在线标识
+                  Positioned(
+                    right: 4, bottom: 4,
+                    child: Container(
+                      width: 10, height: 10,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: const Color(0xFF040D1A),
+                        border: Border.all(
+                          color: const Color(0xFF4D9FFF).withOpacity(0.8),
+                          width: 1.5,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 20),
+ 
+              // 名字信息列
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(ChatData.userName,
+                      style: const TextStyle(
+                        fontSize: 22, fontWeight: FontWeight.w200,
+                        color: Colors.white, letterSpacing: 2,
+                      )),
+                    const SizedBox(height: 6),
+                    // 签名行
+                    Row(children: [
+                      Container(
+                        width: 1, height: 12,
+                        color: const Color(0xFF4D9FFF).withOpacity(0.5),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          ChatData.userSign.isEmpty
+                              ? "频段接入中..."
+                              : ChatData.userSign,
+                          style: const TextStyle(
+                            fontSize: 11, color: Color(0xFF4A6688),
+                            letterSpacing: 0.5,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        )),
+                    ]),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+ 
+  // 数据统计带
+  Widget _buildStatsBand(int totalMsgs) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 24),
+      padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 16),
+      decoration: const BoxDecoration(
+        border: Border(
+          top: BorderSide(color: Color(0xFF4D9FFF), width: 0.5),
+          bottom: BorderSide(color: Color(0x114D9FFF)),
+        ),
+      ),
+      child: Row(
+        children: [
+          _statCell("星友", "${ChatData.roles.length}", "STARS"),
+          _statDivider(),
+          _statCell("消息", "$totalMsgs", "MESSAGES"),
+          _statDivider(),
+          _statCell("频段", "在线", "STATUS"),
+        ],
+      ),
+    );
+  }
+ 
+  Widget _statCell(String label, String value, String en) {
+    return Expanded(
+      child: Column(
+        children: [
+          Text(value,
+            style: const TextStyle(
+              fontSize: 20, fontWeight: FontWeight.w200,
+              color: Color(0xFFC8E0FF), letterSpacing: 1,
+            )),
+          const SizedBox(height: 4),
+          Text(en,
+            style: const TextStyle(
+              fontSize: 8, letterSpacing: 3,
+              color: Color(0xFF4A6688), fontWeight: FontWeight.w300,
+            )),
+        ],
+      ),
+    );
+  }
+ 
+  Widget _statDivider() => Container(
+    width: 1, height: 32,
+    decoration: BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          Colors.transparent,
+          const Color(0xFF4D9FFF).withOpacity(0.3),
+          Colors.transparent,
+        ],
+      ),
+    ),
+  );
+ 
+  Widget _sectionLabel(String text) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 24),
+    child: Row(children: [
+      Container(width: 20, height: 1,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Colors.transparent, Color(0xFF4D9FFF)],
+          ),
+        )),
+      const SizedBox(width: 8),
+      Text(text,
+        style: const TextStyle(
+          fontSize: 8, letterSpacing: 5,
+          color: Color(0xFF4A6688), fontWeight: FontWeight.w300,
+        )),
+    ]),
+  );
+}
+ 
+// ── 导航条目 ───────────────────────────────────────────────────────
+class _NavItem extends StatefulWidget {
+  final IconData icon;
+  final String label;
+  final String sub;
+  final Color accentColor;
+ 
+  const _NavItem({
+    required this.icon,
+    required this.label,
+    required this.sub,
+    required this.accentColor,
+  });
+ 
+  @override
+  State<_NavItem> createState() => _NavItemState();
+}
+ 
+class _NavItemState extends State<_NavItem>
+    with SingleTickerProviderStateMixin {
+  bool _pressed = false;
+  late AnimationController _ctrl;
+  late Animation<double> _anim;
+ 
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 300));
+    _anim = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
+  }
+ 
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+ 
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) {
+        setState(() => _pressed = true);
+        _ctrl.forward();
+      },
+      onTapUp: (_) {
+        setState(() => _pressed = false);
+        _ctrl.reverse();
+      },
+      onTapCancel: () {
+        setState(() => _pressed = false);
+        _ctrl.reverse();
+      },
+      child: AnimatedBuilder(
+        animation: _anim,
+        builder: (_, __) => Container(
+          margin: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.02 + _anim.value * 0.03),
+            border: Border(
+              left: BorderSide(
+                color: widget.accentColor
+                    .withOpacity(0.3 + _anim.value * 0.5),
+                width: 1.5,
+              ),
+              top: BorderSide(
+                  color: Colors.white.withOpacity(0.03)),
+              right: BorderSide(
+                  color: Colors.white.withOpacity(0.03)),
+              bottom: BorderSide(
+                  color: Colors.white.withOpacity(0.03)),
+            ),
+          ),
+          child: Row(
+            children: [
+              // 图标
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                width: 32, height: 32,
+                decoration: BoxDecoration(
+                  color: widget.accentColor
+                      .withOpacity(0.05 + _anim.value * 0.08),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: widget.accentColor
+                        .withOpacity(0.15 + _anim.value * 0.3),
+                    width: 0.8,
+                  ),
+                ),
+                child: Icon(widget.icon,
+                  size: 15,
+                  color: widget.accentColor
+                      .withOpacity(0.6 + _anim.value * 0.4)),
+              ),
+              const SizedBox(width: 14),
+ 
+              // 文字
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(widget.label,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: _pressed
+                            ? const Color(0xFFC8E0FF)
+                            : Colors.white.withOpacity(0.65),
+                        fontWeight: FontWeight.w300,
+                        letterSpacing: 0.5,
+                      )),
+                    const SizedBox(height: 2),
+                    Text(widget.sub,
+                      style: const TextStyle(
+                        fontSize: 10, color: Color(0xFF4A6688),
+                        letterSpacing: 0.5,
+                      )),
+                  ],
+                ),
+              ),
+ 
+              // 右箭头
+              AnimatedOpacity(
+                duration: const Duration(milliseconds: 200),
+                opacity: _pressed ? 1.0 : 0.25,
+                child: Icon(Icons.arrow_forward,
+                  size: 12,
+                  color: widget.accentColor),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+ 
 
 // --- 聊天室 ---
 class ChatRoomPage extends StatefulWidget {
@@ -5604,4 +5934,223 @@ class _VoiceBubbleState extends State<VoiceBubble>
       ],
     );
   }
+}
+class _StarTabBar extends StatefulWidget {
+  final int currentIndex;
+  final void Function(int) onTap;
+ 
+  const _StarTabBar({
+    required this.currentIndex,
+    required this.onTap,
+  });
+ 
+  @override
+  State<_StarTabBar> createState() => _StarTabBarState();
+}
+ 
+class _StarTabBarState extends State<_StarTabBar>
+    with SingleTickerProviderStateMixin {
+  // 流光动画控制器
+  late AnimationController _flowCtrl;
+ 
+  // 每个 tab 的配置
+  static const _tabs = [
+    _TabConfig(icon: Icons.chat_bubble_outline,    label: "频段", color: Color(0xFF7DC4FF)),
+    _TabConfig(icon: Icons.people_outline,          label: "星友", color: Color(0xFF4D9FFF)),
+    _TabConfig(icon: Icons.auto_awesome_mosaic,     label: "动态", color: Color(0xFFA8C4E0)),
+    _TabConfig(icon: Icons.person_outline,          label: "我",   color: Color(0xFF9BBBFF)),
+  ];
+ 
+  @override
+  void initState() {
+    super.initState();
+    _flowCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2000),
+    )..repeat();
+  }
+ 
+  @override
+  void dispose() {
+    _flowCtrl.dispose();
+    super.dispose();
+  }
+ 
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+          child: Container(
+            height: 64,
+            decoration: BoxDecoration(
+              color: const Color(0xFF040D1A).withOpacity(0.82),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: const Color(0xFF4D9FFF).withOpacity(0.12),
+                width: 0.8,
+              ),
+            ),
+            child: Stack(
+              children: [
+                // ── 流光扫描线（沿顶边从左到右流动）──
+                AnimatedBuilder(
+                  animation: _flowCtrl,
+                  builder: (_, __) {
+                    return Positioned(
+                      top: 0,
+                      left: 0, right: 0,
+                      child: LayoutBuilder(
+                        builder: (_, constraints) {
+                          final total = constraints.maxWidth;
+                          // 流光宽度
+                          const glowW = 60.0;
+                          final pos = _flowCtrl.value * (total + glowW) - glowW;
+                          return SizedBox(
+                            height: 1,
+                            child: Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                // 底线（整条暗线）
+                                Container(
+                                  height: 1,
+                                  color: const Color(0xFF4D9FFF).withOpacity(0.08),
+                                ),
+                                // 流光点
+                                Positioned(
+                                  left: pos,
+                                  child: Container(
+                                    width: glowW,
+                                    height: 1,
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        colors: [
+                                          Colors.transparent,
+                                          const Color(0xFF7DC4FF).withOpacity(0.8),
+                                          Colors.transparent,
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    );
+                  },
+                ),
+ 
+                // ── 图标 + 标签 ──
+                Row(
+                  children: List.generate(4, (i) {
+                    final selected = widget.currentIndex == i;
+                    final cfg = _tabs[i];
+                    return Expanded(
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () => widget.onTap(i),
+                        child: TweenAnimationBuilder<double>(
+                          tween: Tween(
+                              begin: 0.0, end: selected ? 1.0 : 0.0),
+                          duration: const Duration(milliseconds: 350),
+                          curve: Curves.easeOutCubic,
+                          builder: (_, v, __) {
+                            return Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                // 图标（选中时上移 + 变色）
+                                Transform.translate(
+                                  offset: Offset(0, -2 * v),
+                                  child: Icon(
+                                    cfg.icon,
+                                    size: 20,
+                                    color: Color.lerp(
+                                      Colors.white.withOpacity(0.22),
+                                      cfg.color,
+                                      v,
+                                    ),
+                                  ),
+                                ),
+                                // 标签（选中时淡入）
+                                SizedBox(height: 3 * v),
+                                AnimatedOpacity(
+                                  opacity: v,
+                                  duration: const Duration(milliseconds: 250),
+                                  child: Text(
+                                    cfg.label,
+                                    style: TextStyle(
+                                      fontSize: 8,
+                                      letterSpacing: 1.5,
+                                      color: cfg.color,
+                                      fontWeight: FontWeight.w300,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                      ),
+                    );
+                  }),
+                ),
+ 
+                // ── 选中 tab 顶部短线（发光）──
+                Positioned(
+                  top: 0, left: 0, right: 0,
+                  child: Row(
+                    children: List.generate(4, (i) {
+                      return Expanded(
+                        child: TweenAnimationBuilder<double>(
+                          tween: Tween(
+                              begin: 0.0,
+                              end: widget.currentIndex == i ? 1.0 : 0.0),
+                          duration: const Duration(milliseconds: 400),
+                          curve: Curves.easeOutCubic,
+                          builder: (_, v, __) {
+                            return Center(
+                              child: Container(
+                                width: 20 * v,
+                                height: 1.5,
+                                decoration: BoxDecoration(
+                                  color: _tabs[i].color.withOpacity(v),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: _tabs[i].color.withOpacity(0.8 * v),
+                                      blurRadius: 6,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      );
+                    }),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+ 
+// Tab 配置数据类
+class _TabConfig {
+  final IconData icon;
+  final String label;
+  final Color color;
+  const _TabConfig({
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
 }
