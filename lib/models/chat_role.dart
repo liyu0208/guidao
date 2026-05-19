@@ -3,8 +3,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 
 class ChatRole {
-  String id; String name; String remark; String persona; String avatar;
-  String lastMessage; DateTime lastTime; bool isPinned;
+  String id; String name; String remark;List<String> openings;
+String selectedOpening;
+String patPat;
+String userRelation;
+String callUser; String persona; String avatar;
+String lastMessage; DateTime lastTime; bool isPinned;
 String heartEmotion;
 String heartThought;
 String heartFeeling;
@@ -16,9 +20,14 @@ String heartScene;
 String heartRecent;
 String heartUpdateMode; // "每次" "手动" "每N次"
 int heartUpdateEvery;
-bool isOfflineMode;
-bool showEmotionInBar;double fontSize;double bubbleOpacity;
-double bubbleBlur;List<Map<String, dynamic>> bubblePresets;
+bool isOfflineMode;String offlineOutputMode;String bubbleRadius;String bubbleBorder;String bubbleShadow;String inputStyle;
+String bubbleAnimation;double backgroundBlur;double avatarSize;
+double avatarRadius;
+bool showEmotionInBar;double fontSize;double myBubbleOpacity;
+double myBubbleBlur;
+double theirBubbleOpacity;
+double theirBubbleBlur;List<Map<String, dynamic>> myBubblePresets;
+List<Map<String, dynamic>> theirBubblePresets;
 String replyLength;
 bool replyLengthEnabled;int memoryCount;
 String longTermMemory;
@@ -39,44 +48,86 @@ String selectedBackground;
 
 
 
+// 找到这一段，直接全部替换
   ChatRole({
-    required this.id, required this.name, this.remark = "", this.persona = "",
-    this.avatar = "", this.lastMessage = "", required this.lastTime,
+    required this.id, 
+    required this.name, 
+    this.remark = "", 
+    List<String>? openings,          // 修改点：去掉const
+    this.selectedOpening = "",
+    this.patPat = "",
+    this.userRelation = "",
+    this.callUser = "", 
+    this.persona = "",
+    this.avatar = "", 
+    this.lastMessage = "", 
+    required this.lastTime,
     this.isPinned = false,
     this.heartEmotion = "",
-this.heartThought = "",
-this.heartFeeling = "",
-this.heartUnsaid = "",
-this.heartStatus = "",
-this.heartMood = "",
-this.heartSecret = "",
-this.heartScene = "",
-this.heartRecent = "",
-this.heartUpdateMode = "每次",
-this.heartUpdateEvery = 3,
-this.isOfflineMode = false,
-this.showEmotionInBar = false,this.fontSize = 14,
-this.bubbleOpacity = 0.15,
-this.bubbleBlur = 12,this.bubblePresets = const [],
-this.replyLength = "适中",
-this.replyLengthEnabled = false,this.memoryCount = 20,
-this.longTermMemory = "",
-this.sensitiveWords = const [], List<Map<String, String>>? msgs,
+    this.heartThought = "",
+    this.heartFeeling = "",
+    this.heartUnsaid = "",
+    this.heartStatus = "",
+    this.heartMood = "",
+    this.heartSecret = "",
+    this.heartScene = "",
+    this.heartRecent = "",
+    this.heartUpdateMode = "每次",
+    this.heartUpdateEvery = 3,
+    this.isOfflineMode = false,
+    this.offlineOutputMode = "分段式",
+    this.bubbleRadius = "超圆角",
+    this.bubbleBorder = "无",
+    this.bubbleShadow = "无",
+    this.inputStyle = "胶囊",
+    this.bubbleAnimation = "无",
+    this.backgroundBlur = 0,
+    this.avatarSize = 40,
+    this.avatarRadius = 50,
+    this.showEmotionInBar = false,
+    this.fontSize = 14,
+    this.myBubbleOpacity = 0.15,
+    this.myBubbleBlur = 12,
+    this.theirBubbleOpacity = 0.15,
+    this.theirBubbleBlur = 12,
+    List<Map<String, dynamic>>? myBubblePresets,    // 修改点：去掉const
+    List<Map<String, dynamic>>? theirBubblePresets, // 修改点：去掉const
+    this.replyLength = "适中",
+    this.replyLengthEnabled = false,
+    this.memoryCount = 20,
+    this.longTermMemory = "",
+    List<String>? sensitiveWords,                    // 修改点：去掉const
+    List<Map<String, String>>? msgs,
     this.customBubbleCss = "",
-    this.showAvatar = true, this.showBubble = true, this.showTime = false,
-    this.timePosition = "气泡下方", this.showName = true,
-    this.myBubbleStyle = "透明", this.theirBubbleStyle = "黑",
+    this.showAvatar = true, 
+    this.showBubble = true, 
+    this.showTime = false,
+    this.timePosition = "气泡下方", 
+    this.showName = true,
+    this.myBubbleStyle = "透明", 
+    this.theirBubbleStyle = "黑",
     this.fontColor = "#FFFFFF", 
     this.headerOpacity = 0.7, 
-    this.footerOpacity = 0.3, this.chatBackgrounds = const [],
-    this.selectedBackground = "", this.worldBook = "无",
+    this.footerOpacity = 0.3, 
+    List<String>? chatBackgrounds,                   // 修改点：去掉const
+    this.selectedBackground = "", 
+    this.worldBook = "无",
     List<String>? stickerList,
-  }) : messages = msgs ?? [],stickers = stickerList ?? [];
-
+  }) : messages = msgs ?? [],
+       openings = openings ?? [],                    // 确保列表是可变的
+       myBubblePresets = myBubblePresets ?? [],      // 确保列表是可变的
+       theirBubblePresets = theirBubblePresets ?? [], // 确保列表是可变的
+       sensitiveWords = sensitiveWords ?? [],        // 确保列表是可变的
+       chatBackgrounds = chatBackgrounds ?? [],      // 确保列表是可变的
+       stickers = stickerList ?? [];
   Map<String, dynamic> toJson() => {
-    'id': id, 'name': name, 'remark': remark, 'persona': persona, 'avatar': avatar,
-    'lastTime': lastTime.toIso8601String(), 'lastMessage': lastMessage,
-    'messages': messages, 'isPinned': isPinned,'heartEmotion': heartEmotion,
+'id': id, 'name': name, 'remark': remark,'openings': openings,
+'selectedOpening': selectedOpening,
+'patPat': patPat,
+'userRelation': userRelation,
+'callUser': callUser, 'persona': persona, 'avatar': avatar,
+'lastTime': lastTime.toIso8601String(), 'lastMessage': lastMessage,
+'messages': messages, 'isPinned': isPinned,'heartEmotion': heartEmotion,
 'heartThought': heartThought,
 'heartFeeling': heartFeeling,
 'heartUnsaid': heartUnsaid,
@@ -86,10 +137,16 @@ this.sensitiveWords = const [], List<Map<String, String>>? msgs,
 'heartScene': heartScene,
 'heartRecent': heartRecent,
 'heartUpdateMode': heartUpdateMode,
-'heartUpdateEvery': heartUpdateEvery,'isOfflineMode': isOfflineMode,
+'heartUpdateEvery': heartUpdateEvery,'isOfflineMode': isOfflineMode,'offlineOutputMode': offlineOutputMode,
+'bubbleRadius': bubbleRadius,'bubbleBorder': bubbleBorder,'bubbleShadow': bubbleShadow,'inputStyle': inputStyle,'backgroundBlur': backgroundBlur,
+'avatarSize': avatarSize,
+'avatarRadius': avatarRadius,
 'showEmotionInBar': showEmotionInBar,
-'fontSize': fontSize,'bubbleOpacity': bubbleOpacity,
-'bubbleBlur': bubbleBlur,'bubblePresets': bubblePresets,
+'fontSize': fontSize,'myBubbleOpacity': myBubbleOpacity,
+'myBubbleBlur': myBubbleBlur,
+'theirBubbleOpacity': theirBubbleOpacity,
+'theirBubbleBlur': theirBubbleBlur,'myBubblePresets': myBubblePresets,
+'theirBubblePresets': theirBubblePresets,
 'replyLength': replyLength,
 'replyLengthEnabled': replyLengthEnabled,'memoryCount': memoryCount,
 'longTermMemory': longTermMemory,
@@ -103,17 +160,21 @@ this.sensitiveWords = const [], List<Map<String, String>>? msgs,
   };
 
 // 定位于 ChatRole 类内部
-  factory ChatRole.fromJson(Map<String, dynamic> json) => ChatRole(
-    id: json['id'] ?? "", 
-    name: json['name'] ?? "", 
-    remark: json['remark'] ?? "",
-    persona: json['persona'] ?? "", 
-    avatar: json['avatar'] ?? "",
-    lastTime: DateTime.parse(json['lastTime'] ?? DateTime.now().toIso8601String()), 
-    lastMessage: json['lastMessage'] ?? "",
-    msgs: List<Map<String, String>>.from((json['messages'] ?? []).map((i) => Map<String, String>.from(i))),
-    isPinned: json['isPinned'] ?? false,
-    heartEmotion: json['heartEmotion'] ?? "",
+factory ChatRole.fromJson(Map<String, dynamic> json) => ChatRole(
+id: json['id'] ?? "", 
+name: json['name'] ?? "", 
+remark: json['remark'] ?? "",openings: List<String>.from(json['openings'] ?? []),
+selectedOpening: json['selectedOpening'] ?? "",
+patPat: json['patPat'] ?? "",
+userRelation: json['userRelation'] ?? "",
+callUser: json['callUser'] ?? "",
+persona: json['persona'] ?? "", 
+avatar: json['avatar'] ?? "",
+lastTime: DateTime.parse(json['lastTime'] ?? DateTime.now().toIso8601String()), 
+lastMessage: json['lastMessage'] ?? "",
+msgs: List<Map<String, String>>.from((json['messages'] ?? []).map((i) => Map<String, String>.from(i))),
+isPinned: json['isPinned'] ?? false,
+heartEmotion: json['heartEmotion'] ?? "",
 heartThought: json['heartThought'] ?? "",
 heartFeeling: json['heartFeeling'] ?? "",
 heartUnsaid: json['heartUnsaid'] ?? "",
@@ -123,11 +184,18 @@ heartSecret: json['heartSecret'] ?? "",
 heartScene: json['heartScene'] ?? "",
 heartRecent: json['heartRecent'] ?? "",
 heartUpdateMode: json['heartUpdateMode'] ?? "每次",
-heartUpdateEvery: json['heartUpdateEvery'] ?? 3,isOfflineMode: json['isOfflineMode'] ?? false,
+heartUpdateEvery: json['heartUpdateEvery'] ?? 3,isOfflineMode: json['isOfflineMode'] ?? false,offlineOutputMode: json['offlineOutputMode'] ?? "分段式",bubbleRadius: json['bubbleRadius'] ?? "超圆角",
+bubbleBorder: json['bubbleBorder'] ?? "无",bubbleShadow: json['bubbleShadow'] ?? "无",inputStyle: json['inputStyle'] ?? "胶囊",backgroundBlur: (json['backgroundBlur'] ?? 0).toDouble(),
+
+avatarSize: (json['avatarSize'] ?? 40).toDouble(),
+avatarRadius: (json['avatarRadius'] ?? 50).toDouble(),
 showEmotionInBar: json['showEmotionInBar'] ?? false,fontSize: (json['fontSize'] ?? 14).toDouble(),
-bubbleOpacity: (json['bubbleOpacity'] ?? 0.15).toDouble(),
-bubbleBlur: (json['bubbleBlur'] ?? 12).toDouble(),
-bubblePresets: List<Map<String, dynamic>>.from(json['bubblePresets'] ?? []),
+myBubbleOpacity: (json['myBubbleOpacity'] ?? 0.15).toDouble(),
+myBubbleBlur: (json['myBubbleBlur'] ?? 12).toDouble(),
+theirBubbleOpacity: (json['theirBubbleOpacity'] ?? 0.15).toDouble(),
+theirBubbleBlur: (json['theirBubbleBlur'] ?? 12).toDouble(),
+myBubblePresets: List<Map<String, dynamic>>.from(json['myBubblePresets'] ?? []),
+theirBubblePresets: List<Map<String, dynamic>>.from(json['theirBubblePresets'] ?? []),
 replyLength: json['replyLength'] ?? "适中",
 replyLengthEnabled: json['replyLengthEnabled'] ?? false,memoryCount: json['memoryCount'] ?? 20,
 longTermMemory: json['longTermMemory'] ?? "",

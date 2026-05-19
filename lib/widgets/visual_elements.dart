@@ -183,7 +183,7 @@ class _DSBState extends State<DynamicStarBackground>
       gradient: LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
-        colors: [Color(0xFF00040A), Color(0xFF000B18), Color(0xFF0D1B2A)],
+        colors: [Color.fromARGB(255, 0, 8, 17), Color.fromARGB(255, 0, 7, 22), Color.fromARGB(255, 0, 11, 21)],//从上到下 的渐变色，模拟深空的层次感
       ),
     ),
     child: AnimatedBuilder(
@@ -198,13 +198,11 @@ class _DSBState extends State<DynamicStarBackground>
 class StarModel {
   double x = Random().nextDouble(),
       y = Random().nextDouble(),
-      r = Random().nextDouble() * 1.8 + 0.4,
-      us =
-          Random().nextDouble() * 0.03 + 0.005, // 速度大幅降低
-      ds =
-          (Random().nextDouble() - 0.5) * 0.008, // 横向漂移极小
+      r = Random().nextDouble() * 2.5 + 0.5,
+      us = Random().nextDouble() * 0.002 + 0.0005,
+      ds = (Random().nextDouble() - 0.5) * 0.001,
       tp = Random().nextDouble() * pi * 2,
-      ts = Random().nextDouble() * 0.8 + 0.3; // 闪烁变慢
+      ts = Random().nextDouble() * 0.4 + 0.1;
 }
 
 class StarPainter extends CustomPainter {
@@ -218,8 +216,8 @@ class StarPainter extends CustomPainter {
       double cY = ((s.y - t * s.us) % 1.0 + 1.0) % 1.0,
           cX = ((s.x + t * s.ds + sin(t * 2 + s.tp) * 0.005) % 1.0 + 1.0) % 1.0;
       p.color = Colors.white.withValues(
-        alpha: (0.3 + 0.5 * sin(t * pi * s.ts + s.tp)).clamp(0.2, 0.9),
-      );
+  alpha: (0.1 + 0.9 * sin(t * pi * s.ts + s.tp)).clamp(0.0, 1.0),
+);
       canvas.drawCircle(Offset(cX * size.width, cY * size.height), s.r, p);
     }
   }
@@ -506,9 +504,10 @@ class _FlatMoonPainter extends CustomPainter {
 // --- 纯白线条形变：赛博星球图标 ---
 // --- 智能随机科技头像：从你选出的 4 个图标中随机分发 ---
 class PlanetAvatar extends StatelessWidget {
-  final String seed; // 用于决定显示哪一个图标的“种子”
-  
-  const PlanetAvatar({super.key, required this.seed});
+  final String seed;
+  final double size;
+  final double radius;
+  const PlanetAvatar({super.key, required this.seed, this.size = 40, this.radius = 50});
 
   @override
   Widget build(BuildContext context) {
@@ -526,12 +525,12 @@ class PlanetAvatar extends StatelessWidget {
     final IconData selectedIcon = cyberIcons[index];
 
     return Container(
-      width: 40,
-      height: 40,
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05), // 极淡的圆形底色
-        shape: BoxShape.circle,
-      ),
+  width: size,
+  height: size,
+  decoration: BoxDecoration(
+    color: Colors.white.withValues(alpha: 0.05),
+    borderRadius: BorderRadius.circular(radius),
+  ),
       child: Center(
         child: Icon(
           selectedIcon,
