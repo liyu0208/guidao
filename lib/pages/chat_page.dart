@@ -127,7 +127,7 @@ class _ChatPageState extends State<ChatPage> {
   Widget build(BuildContext context) => MobileFrame(
     title: ["频段", "星友", "动态", "我"][_idx],
     appBarOpacity: 0.8,
-    showBack: _idx < 2, 
+    showBack: _idx < 2,
     actions:
         _idx == 0
             ? [
@@ -494,7 +494,7 @@ class MobileFrame extends StatelessWidget {
     backgroundColor: Colors.transparent,
     body: Stack(
       children: [
-        const DynamicStarBackground(),
+        const RepaintBoundary(child: DynamicStarBackground()),
         child,
         Positioned(
           top: 0,
@@ -506,16 +506,17 @@ class MobileFrame extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Row(
                 children: [
-                   if (showBack) 
-                  GestureDetector(
-                    onTap: () => Navigator.maybePop(context),
-                    child: const Icon(
-                      Icons.arrow_back_ios_new,
-                      size: 20,
-                      color: Colors.white70,
+                  if (showBack)
+                    GestureDetector(
+                      onTap: () => Navigator.maybePop(context),
+                      child: const Icon(
+                        Icons.arrow_back_ios_new,
+                        size: 20,
+                        color: Colors.white70,
+                      ),
                     ),
-                  ),
-                  if (!showBack) const SizedBox(width: 20), // 🌟 如果隐藏了，占个位或者保持间距
+                  if (!showBack)
+                    const SizedBox(width: 20), // 🌟 如果隐藏了，占个位或者保持间距
                   const Spacer(),
                   if (actions != null) ...actions!,
                 ],
@@ -1015,6 +1016,9 @@ class _CRPState extends State<ChatRoomPage> {
   bool _isT = false;
   int _retryCount = 0;
   bool _showMorePanel = false;
+  MemoryImage? _cachedBg;
+  MemoryImage? _cachedRoleAvatar; // ← 加这行：角色头像缓存
+  MemoryImage? _cachedUserAvatar;
 
   // 🌟 顺便在这里补上一个 dispose，防止内存泄露
   @override
@@ -1087,6 +1091,16 @@ class _CRPState extends State<ChatRoomPage> {
   @override
   void initState() {
     super.initState();
+    if (widget.role.selectedBackground.isNotEmpty) {
+      _cachedBg = MemoryImage(base64Decode(widget.role.selectedBackground));
+    }
+    // 头像缓存（新加的）↓
+    if (widget.role.avatar.isNotEmpty) {
+      _cachedRoleAvatar = MemoryImage(base64Decode(widget.role.avatar));
+    }
+    if (ChatData.userAvatar.isNotEmpty) {
+      _cachedUserAvatar = MemoryImage(base64Decode(ChatData.userAvatar));
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollC.hasClients) {
         _scrollC.jumpTo(_scrollC.position.maxScrollExtent);
@@ -1100,7 +1114,7 @@ class _CRPState extends State<ChatRoomPage> {
     appBarOpacity: widget.role.headerOpacity,
     avatar: null,
     actions: const [],
-    showBack: false,  // ← 加这行，隐藏 MobileFrame 自带的返回键
+    showBack: false, // ← 加这行，隐藏 MobileFrame 自带的返回键
     child: Stack(
       children: [
         GestureDetector(
@@ -1114,16 +1128,18 @@ class _CRPState extends State<ChatRoomPage> {
           child: Container(
             child: Stack(
               children: [
-                if (widget.role.selectedBackground.isNotEmpty)
+                if (_cachedBg != null)
                   Positioned.fill(
-                    child: ImageFiltered(
-                      imageFilter: ImageFilter.blur(
-                        sigmaX: widget.role.backgroundBlur,
-                        sigmaY: widget.role.backgroundBlur,
-                      ),
-                      child: Image.memory(
-                        base64Decode(widget.role.selectedBackground),
-                        fit: BoxFit.cover,
+                    child: RepaintBoundary(
+                      child: ImageFiltered(
+                        imageFilter: ImageFilter.blur(
+                          sigmaX: widget.role.backgroundBlur,
+                          sigmaY: widget.role.backgroundBlur,
+                        ),
+                        child: Image(
+                          image: _cachedBg!, // ← 用缓存，不重新解码
+                          fit: BoxFit.cover,
+                        ),
                       ),
                     ),
                   ),
@@ -1351,13 +1367,17 @@ class _CRPState extends State<ChatRoomPage> {
                     ),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
-children: [
-  GestureDetector(
-    onTap: () => Navigator.maybePop(context),
-    child: const Icon(Icons.arrow_back_ios_new, size: 18, color: Colors.white70),
-  ),
-  const SizedBox(width: 10), // 箭头和头像的间距，越大间距越宽
-  widget.role.avatar.isEmpty
+                      children: [
+                        GestureDetector(
+                          onTap: () => Navigator.maybePop(context),
+                          child: const Icon(
+                            Icons.arrow_back_ios_new,
+                            size: 18,
+                            color: Colors.white70,
+                          ),
+                        ),
+                        const SizedBox(width: 10), // 箭头和头像的间距，越大间距越宽
+                        widget.role.avatar.isEmpty
                             ? Container(
                               width: 32,
                               height: 32,
@@ -1372,11 +1392,13 @@ children: [
                               ),
                             )
                             : ClipRRect(
-                              borderRadius: BorderRadius.circular(10),
-                              child: Image.memory(
-                                base64Decode(widget.role.avatar),
-                                width: 32,
-                                height: 32,
+                              borderRadius: BorderRadius.circular(
+                                widget.role.avatarRadius,
+                              ),
+                              child: Image(
+                                image: _cachedRoleAvatar!, // ← 用缓存
+                                width: widget.role.avatarSize,
+                                height: widget.role.avatarSize,
                                 fit: BoxFit.cover,
                               ),
                             ),
@@ -2339,30 +2361,31 @@ children: [
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // 对方头像：传入对方的名字作为随机种子
-          if (!isM && widget.role.showAvatar)
-            Column(
-              children: [
-                GestureDetector(
-                  onTap: () => _showHeartDialog(),
-                  child:
-                      widget.role.avatar.isEmpty
-                          ? PlanetAvatar(
-                            seed: widget.role.name,
-                            size: widget.role.avatarSize,
-                            radius: widget.role.avatarRadius,
-                          )
-                          : ClipRRect(
-                            borderRadius: BorderRadius.circular(
-                              widget.role.avatarRadius,
-                            ),
-                            child: Image.memory(
-                              base64Decode(widget.role.avatar),
-                              width: widget.role.avatarSize,
-                              height: widget.role.avatarSize,
-                              fit: BoxFit.cover,
-                            ),
-                          ),
+if (!isM && widget.role.showAvatar)
+  Column(
+    children: [
+      GestureDetector(
+        onTap: () => _showHeartDialog(),
+        child:
+            widget.role.avatar.isEmpty
+                ? PlanetAvatar(
+                  seed: widget.role.name,
+                  size: widget.role.avatarSize,
+                  radius: widget.role.avatarRadius,
+                )
+                : ClipRRect(
+                  borderRadius: BorderRadius.circular(
+                    widget.role.avatarRadius,
+                  ),
+                  child: Image(               // ← 改这里
+                    image: _cachedRoleAvatar!,
+                    width: widget.role.avatarSize,
+                    height: widget.role.avatarSize,
+                    fit: BoxFit.cover,
+                  ),
                 ),
+      ),
+  
                 if (widget.role.showTime &&
                     widget.role.timePosition == "头像下方" &&
                     timeStr.isNotEmpty)
@@ -2449,8 +2472,8 @@ children: [
                       borderRadius: BorderRadius.circular(
                         widget.role.avatarRadius,
                       ),
-                      child: Image.memory(
-                        base64Decode(ChatData.userAvatar),
+                      child: Image(
+                        image: _cachedUserAvatar!, // ← 用缓存
                         width: widget.role.avatarSize,
                         height: widget.role.avatarSize,
                         fit: BoxFit.cover,
@@ -2915,35 +2938,48 @@ class _CSPState extends State<ChatSettingsPage> {
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: Colors.transparent,
-body: Stack(
-  children: [
-    const DynamicStarBackground(),
-    Column(
+    body: Stack(
       children: [
-        SafeArea(
-          bottom: false,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            child: Row(
-              children: [
-                GestureDetector(
-                  onTap: () => Navigator.maybePop(context),
-                  child: const Icon(Icons.arrow_back_ios_new, size: 18, color: Colors.white70),
+        const DynamicStarBackground(),
+        Column(
+          children: [
+            SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
                 ),
-                const Spacer(),
-                GestureDetector(
-                  onTap: () {
-                    ChatData.saveAll();
-                    Navigator.maybePop(context);
-                  },
-                  child: const Text("保存", style: TextStyle(fontSize: 14, color: Colors.blueAccent)),
+                child: Row(
+                  children: [
+                    GestureDetector(
+                      onTap: () => Navigator.maybePop(context),
+                      child: const Icon(
+                        Icons.arrow_back_ios_new,
+                        size: 18,
+                        color: Colors.white70,
+                      ),
+                    ),
+                    const Spacer(),
+                    GestureDetector(
+                      onTap: () {
+                        ChatData.saveAll();
+                        Navigator.maybePop(context);
+                      },
+                      child: const Text(
+                        "保存",
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.blueAccent,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
               child: Row(
                 children: [
                   GestureDetector(

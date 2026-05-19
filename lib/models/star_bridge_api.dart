@@ -6,11 +6,8 @@ class StarBridgeApi {
   String selectedModel; double temperature;
   bool isDefault;
 
-  // 语音与生图配置
   String minimaxGroupId; String minimaxKey; String minimaxModel;
   String novelAiKey; String novelAiModel;
-
-  // --- 🌟 新增：GitHub 备份配置 ---
   String githubToken; String githubUser; String githubRepo; String githubPath;
 
   StarBridgeApi({
@@ -49,13 +46,34 @@ class StarBridgeApi {
 
 class StarBridgeData {
   static List<StarBridgeApi> apiList = [];
+
+  // 内置默认API
+  static final StarBridgeApi _builtInApi = StarBridgeApi(
+    id: "builtin_default",
+    name: "星桥公益站",
+    url: "https://api.242243.xyz/",
+    key: "sk-ECEaIH4n4GJgnN2WlX6lrkgV5x3C73lIhGRIbVEhU892kqup",
+    selectedModel: "",
+    temperature: 0.8,
+    isDefault: true,
+  );
+
   static Future<void> saveAll() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('star_bridge_v13_data', json.encode(apiList.map((e) => e.toJson()).toList()));
   }
+
   static Future<void> loadAll() async {
     final prefs = await SharedPreferences.getInstance();
     final String? encoded = prefs.getString('star_bridge_v13_data');
-    if (encoded != null) apiList = (json.decode(encoded) as List).map((e) => StarBridgeApi.fromJson(e)).toList();
+    if (encoded != null) {
+      apiList = (json.decode(encoded) as List).map((e) => StarBridgeApi.fromJson(e)).toList();
+    }
+    // 如果列表里没有内置API，就自动插入到第一位
+    final hasBuiltIn = apiList.any((e) => e.id == "builtin_default");
+    if (!hasBuiltIn) {
+      apiList.insert(0, _builtInApi);
+      await saveAll();
+    }
   }
 }
